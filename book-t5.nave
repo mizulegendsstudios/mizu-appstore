@@ -1,0 +1,594 @@
+// book-t5.nave - Libro de VaciOS v2.2.0 (Tomo 5) - Edición Completa
+// Contenido: Descripción detallada del sistema, cada módulo, comparativas, pros/contras,
+// guía de creación de naves e instrucciones para IA.
+// Versión: 3.0.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+(function bookT5() {
+    'use strict';
+
+    const APP_NAME = 'book-t5';
+    const VERSION = '3.0.0';
+
+    // ---- Definición de páginas (15 páginas) ----
+    const PAGES = {
+
+        // 1. Portada
+        page01: {
+            id: 'page01',
+            label: '🚀 Portada v2.2.0',
+            tomo: 5,
+            render: function(container) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2rem 1rem; font-family: system-ui, sans-serif;">
+                        <div style="font-size: 4rem; margin-bottom: 1rem;">📚</div>
+                        <h1 style="font-size: 3rem; color: #2c3e50; margin: 0.5rem 0;">VaciOS v2.2.0</h1>
+                        <h2 style="font-size: 2rem; color: #34495e; margin: 0.5rem 0;">El Puerto Espacial</h2>
+                        <p style="font-size: 1.4rem; color: #7f8c8d; margin: 1rem 0;">Arquitectura Minimalista · 7 Módulos</p>
+                        <div style="border-top: 2px dashed #bdc3c7; width: 60%; margin: 2rem auto; padding-top: 1.5rem; opacity: 0.7;">
+                            <p style="font-size: 1.1rem;">"El muelle espera, la nave atraca, el usuario explora."</p>
+                            <p style="margin-top: 0.5rem; font-size: 0.9rem;">Moisés Núñez · 2026</p>
+                        </div>
+                        <div style="margin-top: 2rem; background: #ecf0f1; border-radius: 12px; padding: 1rem; display: inline-block;">
+                            <span style="font-weight: bold;">📖 Tomo 5 – Guía Completa del Sistema</span>
+                        </div>
+                    </div>
+                `;
+            }
+        },
+
+        // 2. Introducción
+        page02: {
+            id: 'page02',
+            label: '📖 Introducción',
+            tomo: 5,
+            render: function(container) {
+                container.innerHTML = `
+                    <div style="padding: 1rem 0.5rem;">
+                        <h2 class="chapter-title">📖 ¿Qué es VaciOS?</h2>
+                        <div class="explain-box">
+                            <div class="emoji-deco">🧠</div>
+                            <p><strong>VaciOS</strong> es un sistema modular para crear aplicaciones web sin servidor, basado en una metáfora de puerto espacial:</p>
+                            <ul class="friendly-list">
+                                <li><strong>Naves</strong> — las aplicaciones (archivos .nave).</li>
+                                <li><strong>Muelle</strong> — el contenedor donde se muestran (dock.mizu).</li>
+                                <li><strong>Jefe del muelle</strong> — orquesta el atraque y la activación (dockmaster.mizu).</li>
+                                <li><strong>Grúa</strong> — carga los archivos (hauler.mizu).</li>
+                                <li><strong>Faro</strong> — da color y estilo (lighthouse.mizu).</li>
+                                <li><strong>Centro de operaciones</strong> — panel de control (opscenter.mizu).</li>
+                                <li><strong>Núcleo</strong> — el faro que emite señales (core.mizu).</li>
+                            </ul>
+                            <p>Todo funciona con un único archivo JavaScript (<code>ignite.js</code>) que carga el resto de módulos escritos en <code>.mizu</code>.</p>
+                        </div>
+                        <div class="concept-grid">
+                            <div class="concept-card">
+                                <span class="card-icon">🎯</span>
+                                <div class="card-title">Responsabilidad Única</div>
+                                <div class="card-desc">Cada módulo hace una cosa y la hace bien.</div>
+                            </div>
+                            <div class="concept-card">
+                                <span class="card-icon">🔗</span>
+                                <div class="card-title">Eventos</div>
+                                <div class="card-desc">Comunicación desacoplada entre módulos.</div>
+                            </div>
+                            <div class="concept-card">
+                                <span class="card-icon">💾</span>
+                                <div class="card-title">Persistencia</div>
+                                <div class="card-desc">Estado guardado en localStorage, sin funciones.</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        },
+
+        // 3. core.mizu (el núcleo)
+        page03: {
+            id: 'page03',
+            label: '⚙️ core.mizu',
+            tomo: 5,
+            render: function(container) {
+                container.innerHTML = `
+                    <div style="padding: 1rem 0.5rem;">
+                        <h2 class="chapter-title">⚙️ core.mizu – El Faro</h2>
+                        <div class="explain-box">
+                            <div class="emoji-deco">💡</div>
+                            <p><strong>Responsabilidad:</strong> Estado global, persistencia en localStorage y bus de eventos.</p>
+                            <p><strong>Funciones principales:</strong></p>
+                            <ul class="friendly-list">
+                                <li><code>State</code> – objeto único con todo el estado (tema, app activa, página actual, apps, whitelist…).</li>
+                                <li><code>save()</code> / <code>load()</code> – guarda y recupera el estado (sin funciones).</li>
+                                <li><code>on(event, fn)</code> / <code>emit(event, data)</code> – sistema de eventos pub/sub.</li>
+                                <li><code>setTheme()</code>, <code>setActiveApp()</code>, <code>setCurrentPage()</code>, <code>setStandby()</code> – modificadores del estado con emisión automática.</li>
+                            </ul>
+                            <p><strong>No contiene</strong> lógica de negocio de apps (eso es tarea de <code>dockmaster.mizu</code>).</p>
+                        </div>
+                        <div class="code-block">
+                            <span class="code-label">📄 Ejemplo de uso</span>
+                            <pre>// Obtener el estado
+const state = __MIZU.State;
+// Suscribirse a cambios de tema
+__MIZU.on('theme:changed', (data) => {
+    console.log('Nuevo tema:', data.theme);
+});
+// Cambiar tema
+__MIZU.setTheme('dark');</pre>
+                        </div>
+                    </div>
+                `;
+            }
+        },
+
+        // 4. hauler.mizu (la grúa)
+        page04: {
+            id: 'page04',
+            label: '🏗️ hauler.mizu',
+            tomo: 5,
+            render: function(container) {
+                container.innerHTML = `
+                    <div style="padding: 1rem 0.5rem;">
+                        <h2 class="chapter-title">🏗️ hauler.mizu – La Grúa</h2>
+                        <div class="explain-box">
+                            <div class="emoji-deco">🦾</div>
+                            <p><strong>Responsabilidad:</strong> Carga dinámica de scripts (.js, .mizu, .nave) mediante inserción de <code>&lt;script&gt;</code>.</p>
+                            <p><strong>Características:</strong></p>
+                            <ul class="friendly-list">
+                                <li>Compatible con <code>file://</code> (sin CORS).</li>
+                                <li>Caché en memoria para evitar recargas duplicadas.</li>
+                                <li>Control de concurrencia: no carga el mismo script dos veces en paralelo.</li>
+                                <li>Fallback con parámetro anti-caché si la carga falla.</li>
+                                <li>Timeout de 15 segundos por script.</li>
+                                <li>Emite eventos <code>hauler:loaded</code> / <code>hauler:error</code> a través de <code>__MIZU</code>.</li>
+                            </ul>
+                        </div>
+                        <div class="code-block">
+                            <span class="code-label">📄 Ejemplo</span>
+                            <pre>// Cargar una nave
+await __HAULER.loadScript('mi-nave.nave');
+// Cargar múltiples en paralelo
+await __HAULER.loadMany(['modulo1.mizu', 'modulo2.mizu']);</pre>
+                        </div>
+                    </div>
+                `;
+            }
+        },
+
+        // 5. dockmaster.mizu (el jefe del muelle)
+        page05: {
+            id: 'page05',
+            label: '⚓ dockmaster.mizu',
+            tomo: 5,
+            render: function(container) {
+                container.innerHTML = `
+                    <div style="padding: 1rem 0.5rem;">
+                        <h2 class="chapter-title">⚓ dockmaster.mizu – El Jefe del Muelle</h2>
+                        <div class="explain-box">
+                            <div class="emoji-deco">🚢</div>
+                            <p><strong>Responsabilidad:</strong> Orquestar el ciclo de vida de las naves (aplicaciones).</p>
+                            <p><strong>Funciones principales:</strong></p>
+                            <ul class="friendly-list">
+                                <li><code>registerApp(name, definition)</code> – registra una nave con su definición.</li>
+                                <li><code>registerPage(appName, pageId, renderFn, label, tomo)</code> – registra una página dentro de una nave.</li>
+                                <li><code>registerOrgan(appName, organId, definition)</code> – registra un servicio en segundo plano.</li>
+                                <li><code>loadApp(name)</code> – carga una nave desde su archivo <code>.nave</code> y la activa.</li>
+                                <li><code>activateApp(name)</code> – activa una nave ya registrada (carga páginas si es necesario).</li>
+                                <li><code>unloadApp(name)</code> – desactiva y elimina una nave del sistema.</li>
+                            </ul>
+                            <p><strong>Solo carga archivos <code>.nave</code> (seguridad).</strong></p>
+                        </div>
+                        <div class="code-block">
+                            <span class="code-label">📄 Ejemplo de registro</span>
+                            <pre>__DOCKMASTER.registerApp('mi-app', {
+    fullscreen: false,
+    load: async function() {
+        __DOCKMASTER.registerPage('mi-app', 'inicio', (c) => {
+            c.innerHTML = '&lt;h1&gt;Hola VaciOS&lt;/h1&gt;';
+        }, 'Inicio', 1);
+        return true;
+    }
+});</pre>
+                        </div>
+                    </div>
+                `;
+            }
+        },
+
+        // 6. lighthouse.mizu (el faro de colores)
+        page06: {
+            id: 'page06',
+            label: '🌈 lighthouse.mizu',
+            tomo: 5,
+            render: function(container) {
+                container.innerHTML = `
+                    <div style="padding: 1rem 0.5rem;">
+                        <h2 class="chapter-title">🌈 lighthouse.mizu – El Faro de Colores</h2>
+                        <div class="explain-box">
+                            <div class="emoji-deco">🎨</div>
+                            <p><strong>Responsabilidad:</strong> Gestionar los temas visuales (light, dark, book).</p>
+                            <p><strong>Características:</strong></p>
+                            <ul class="friendly-list">
+                                <li>Inyección dinámica de CSS en el <code>&lt;head&gt;</code>.</li>
+                                <li>Tres temas predefinidos: <strong>light</strong> (claro), <strong>dark</strong> (oscuro), <strong>book</strong> (infantil).</li>
+                                <li>Persistencia del tema a través de <code>__MIZU.State.theme</code>.</li>
+                                <li>Suscrito al evento <code>theme:changed</code> de <code>__MIZU</code>.</li>
+                                <li>API: <code>applyTheme(theme)</code>, <code>getCurrentTheme()</code>, <code>toggleTheme()</code>.</li>
+                            </ul>
+                        </div>
+                        <div class="concept-grid">
+                            <div class="concept-card">
+                                <span class="card-icon">☀️</span>
+                                <div class="card-title">Light</div>
+                                <div class="card-desc">Fondo claro, contraste alto.</div>
+                            </div>
+                            <div class="concept-card">
+                                <span class="card-icon">🌙</span>
+                                <div class="card-title">Dark</div>
+                                <div class="card-desc">Fondo oscuro, ideal para juegos.</div>
+                            </div>
+                            <div class="concept-card">
+                                <span class="card-icon">📖</span>
+                                <div class="card-title">Book</div>
+                                <div class="card-desc">Estilo infantil con bordes redondeados.</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        },
+
+        // 7. dock.mizu (el muelle)
+        page07: {
+            id: 'page07',
+            label: '🛥️ dock.mizu',
+            tomo: 5,
+            render: function(container) {
+                container.innerHTML = `
+                    <div style="padding: 1rem 0.5rem;">
+                        <h2 class="chapter-title">🛥️ dock.mizu – El Muelle</h2>
+                        <div class="explain-box">
+                            <div class="emoji-deco">🏗️</div>
+                            <p><strong>Responsabilidad:</strong> Renderizar la interfaz de usuario.</p>
+                            <p><strong>Características:</strong></p>
+                            <ul class="friendly-list">
+                                <li>Se suscribe a eventos de <code>__MIZU</code> (<code>app:activated</code>, <code>page:changed</code>, <code>standby:changed</code>).</li>
+                                <li>Renderiza el layout clásico (header, navbar, pages-container, footer).</li>
+                                <li>Soporte para naves fullscreen (delega en <code>renderFullscreen</code>).</li>
+                                <li>Navegación por pestañas, botones Anterior/Siguiente y teclado (flechas).</li>
+                                <li>Roles ARIA y atributos de accesibilidad.</li>
+                            </ul>
+                            <p><strong>No contiene</strong> lógica de negocio; solo pinta lo que el estado indica.</p>
+                        </div>
+                    </div>
+                `;
+            }
+        },
+
+        // 8. opscenter.mizu (centro de operaciones)
+        page08: {
+            id: 'page08',
+            label: '🖥️ opscenter.mizu',
+            tomo: 5,
+            render: function(container) {
+                container.innerHTML = `
+                    <div style="padding: 1rem 0.5rem;">
+                        <h2 class="chapter-title">🖥️ opscenter.mizu – Centro de Operaciones</h2>
+                        <div class="explain-box">
+                            <div class="emoji-deco">📡</div>
+                            <p><strong>Responsabilidad:</strong> Panel de control flotante para el usuario.</p>
+                            <p><strong>Funciones:</strong></p>
+                            <ul class="friendly-list">
+                                <li>Listado de naves atracadas con botones para activar/desactivar.</li>
+                                <li>Selector de tema (light, dark, book).</li>
+                                <li>Gestión de whitelist (añadir/eliminar naves permitidas).</li>
+                                <li>Activación/desactivación del modo estricto.</li>
+                                <li>Control del modo stand‑by.</li>
+                                <li>Carga personalizada de naves desde archivo <code>.nave</code>.</li>
+                                <li>Persistencia del estado del panel (abierto/cerrado).</li>
+                            </ul>
+                            <p><strong>Es el punto de administración para el usuario final.</strong></p>
+                        </div>
+                    </div>
+                `;
+            }
+        },
+
+        // 9. ignite.js (el cargador)
+        page09: {
+            id: 'page09',
+            label: '🔥 ignite.js',
+            tomo: 5,
+            render: function(container) {
+                container.innerHTML = `
+                    <div style="padding: 1rem 0.5rem;">
+                        <h2 class="chapter-title">🔥 ignite.js – El Cargador Efímero</h2>
+                        <div class="explain-box">
+                            <div class="emoji-deco">⚡</div>
+                            <p><strong>Responsabilidad:</strong> Punto de entrada único. Carga secuencialmente los módulos del núcleo.</p>
+                            <p><strong>Características:</strong></p>
+                            <ul class="friendly-list">
+                                <li>Es el único archivo <code>.js</code> del sistema.</li>
+                                <li>No modifica <code>index.html</code> (se añade como script).</li>
+                                <li>Carga los módulos en orden: <code>core.mizu</code> → <code>hauler.mizu</code> → <code>dockmaster.mizu</code> → <code>lighthouse.mizu</code> → <code>dock.mizu</code> → <code>opscenter.mizu</code>.</li>
+                                <li>Reintentos (3) y timeout (10s) por módulo.</li>
+                                <li>Muestra errores críticos en pantalla si el core falla.</li>
+                                <li>Después de cargar, desaparece sin dejar rastro (no expone nada en <code>window</code>).</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            }
+        },
+
+        // 10. Comparación con v1.3.0
+        page10: {
+            id: 'page10',
+            label: '📊 Comparativa v1.3.0 vs v2.2.0',
+            tomo: 5,
+            render: function(container) {
+                container.innerHTML = `
+                    <div style="padding: 1rem 0.5rem;">
+                        <h2 class="chapter-title">📊 Comparativa con v1.3.0 (Legacy)</h2>
+                        <div class="explain-box">
+                            <div class="emoji-deco">📈</div>
+                            <p><strong>Evolución arquitectónica:</strong></p>
+                            <table class="model-table">
+                                <thead><tr><th>Aspecto</th><th>v1.3.0</th><th>v2.2.0</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Archivos núcleo</td><td>10</td><td>6 (todos .mizu)</td></tr>
+                                    <tr><td>Líneas de código (core)</td><td>~2500</td><td>~700</td></tr>
+                                    <tr><td>Estado</td><td>Distribuido</td><td>Centralizado (__MIZU.State)</td></tr>
+                                    <tr><td>Persistencia</td><td>Adaptadores</td><td>Directa en core</td></tr>
+                                    <tr><td>Eventos</td><td>Wildcards</td><td>Pub/Sub simple</td></tr>
+                                    <tr><td>Navegación</td><td>Módulo separado</td><td>Integrada en dock</td></tr>
+                                    <tr><td>Compatible con file://</td><td>Parcial</td><td>Total</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="concept-grid">
+                            <div class="concept-card" style="background:#e8f0fe;">
+                                <span class="card-title">-72% código</span>
+                                <div class="card-desc">Menos código, menos bugs.</div>
+                            </div>
+                            <div class="concept-card" style="background:#e8f0fe;">
+                                <span class="card-title">+300% rendimiento</span>
+                                <div class="card-desc">Carga y cambio de app más rápidos.</div>
+                            </div>
+                            <div class="concept-card" style="background:#e8f0fe;">
+                                <span class="card-title">+400% aprendizaje</span>
+                                <div class="card-desc">Curva de aprendizaje más suave.</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        },
+
+        // 11. Pros y contras
+        page11: {
+            id: 'page11',
+            label: '✅ Pros y Contras',
+            tomo: 5,
+            render: function(container) {
+                container.innerHTML = `
+                    <div style="padding: 1rem 0.5rem;">
+                        <h2 class="chapter-title">✅ Pros y Contras</h2>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                            <div class="explain-box" style="border-color:#28a745;">
+                                <div class="emoji-deco">✅</div>
+                                <h3 style="margin-top:0;">Pros</h3>
+                                <ul class="friendly-list">
+                                    <li>Ultra‑minimalista y fácil de entender.</li>
+                                    <li>Sin dependencias externas.</li>
+                                    <li>100% compatible con file:// (sin servidor).</li>
+                                    <li>Modular y extensible.</li>
+                                    <li>Persistencia automática en localStorage.</li>
+                                    <li>Seguridad por whitelist y modo estricto.</li>
+                                    <li>Accesibilidad y navegación por teclado.</li>
+                                    <li>Soporte para apps fullscreen.</li>
+                                </ul>
+                            </div>
+                            <div class="explain-box" style="border-color:#dc3545;">
+                                <div class="emoji-deco">❌</div>
+                                <h3 style="margin-top:0;">Contras</h3>
+                                <ul class="friendly-list">
+                                    <li>No tiene sandboxing (las apps comparten el mismo DOM).</li>
+                                    <li>No soporta IndexedDB por defecto (solo localStorage).</li>
+                                    <li>Requiere servidor HTTP para cargar .mizu/.nave con fetch (si se usa).</li>
+                                    <li>No tiene soporte para plugins externos.</li>
+                                    <li>Curva de aprendizaje para la metáfora del puerto.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        },
+
+        // 12. Utilidad del sistema
+        page12: {
+            id: 'page12',
+            label: '💡 Utilidad',
+            tomo: 5,
+            render: function(container) {
+                container.innerHTML = `
+                    <div style="padding: 1rem 0.5rem;">
+                        <h2 class="chapter-title">💡 ¿Para qué sirve VaciOS?</h2>
+                        <div class="explain-box">
+                            <div class="emoji-deco">🎯</div>
+                            <p><strong>VaciOS es ideal para:</strong></p>
+                            <ul class="friendly-list">
+                                <li><strong>Educación:</strong> Enseñar arquitectura de software y persistencia en el navegador.</li>
+                                <li><strong>Documentación interactiva:</strong> Libros digitales con ejemplos vivos (como este mismo).</li>
+                                <li><strong>Entornos de desarrollo ligeros:</strong> Editor de código, paneles de control, etc.</li>
+                                <li><strong>Prototipado rápido:</strong> Crear apps modulares en minutos.</li>
+                                <li><strong>Juegos arcade:</strong> Con soporte fullscreen (ej. Space Dodger).</li>
+                                <li><strong>Bases de conocimiento:</strong> Sistemas de documentación navegables.</li>
+                            </ul>
+                            <p><strong>No es adecuado para:</strong> Aplicaciones que requieran autenticación, bases de datos externas o comunicación en tiempo real.</p>
+                        </div>
+                    </div>
+                `;
+            }
+        },
+
+        // 13. Cómo crear una nave (app)
+        page13: {
+            id: 'page13',
+            label: '🚀 Crear una nave',
+            tomo: 5,
+            render: function(container) {
+                container.innerHTML = `
+                    <div style="padding: 1rem 0.5rem;">
+                        <h2 class="chapter-title">🚀 Cómo crear una nave (app)</h2>
+                        <div class="explain-box">
+                            <div class="emoji-deco">📝</div>
+                            <p><strong>Pasos:</strong></p>
+                            <ol class="friendly-list" style="list-style-type:decimal; padding-left:1.5rem;">
+                                <li><strong>Define tu nave</strong> en un archivo <code>.nave</code>.</li>
+                                <li>Usa <code>__DOCKMASTER.registerApp(nombre, definición)</code> dentro del archivo.</li>
+                                <li>Define el método <code>load()</code> que registrará las páginas con <code>__DOCKMASTER.registerPage()</code>.</li>
+                                <li>Cada página debe tener una función <code>render(container)</code> que pinte su contenido.</li>
+                                <li>Para apps fullscreen, añade <code>fullscreen: true</code> y define <code>renderFullscreen(container)</code>.</li>
+                                <li>Carga tu nave desde OpsCenter (botón 📂 Atracar nave) o desde la consola con <code>__DOCKMASTER.loadApp('nombre')</code>.</li>
+                            </ol>
+                        </div>
+                        <div class="code-block">
+                            <span class="code-label">📄 Ejemplo mínimo</span>
+                            <pre>// mi-nave.nave
+(function() {
+    const APP = 'mi-nave';
+    __DOCKMASTER.registerApp(APP, {
+        fullscreen: false,
+        load: async function() {
+            __DOCKMASTER.registerPage(APP, 'inicio', (c) => {
+                c.innerHTML = '&lt;h1&gt;¡Bienvenido a bordo!&lt;/h1&gt;';
+            }, 'Inicio', 1);
+            return true;
+        }
+    });
+})();</pre>
+                        </div>
+                    </div>
+                `;
+            }
+        },
+
+        // 14. Instrucciones para IA
+        page14: {
+            id: 'page14',
+            label: '🤖 Instrucciones para IA',
+            tomo: 5,
+            render: function(container) {
+                container.innerHTML = `
+                    <div style="padding: 1rem 0.5rem;">
+                        <h2 class="chapter-title">🤖 Cómo pedirle a una IA que genere una nave</h2>
+                        <div class="explain-box">
+                            <div class="emoji-deco">🧠</div>
+                            <p><strong>Prompt recomendado:</strong></p>
+                            <div class="code-block" style="background:#1a2a3a; border-color:#3d5a80;">
+                                <pre style="color:#d4e6f1;">"Necesito crear una aplicación para VaciOS v2.2.0.
+La app se llamará 'mi-app' y tendrá 2 páginas:
+- 'inicio': muestra un mensaje de bienvenida.
+- 'acerca': muestra información del autor.
+La app debe ser fullscreen: false (modo legado).
+Genera el código completo en un archivo .nave."</pre>
+                            </div>
+                            <p><strong>La IA generará:</strong></p>
+                            <ul class="friendly-list">
+                                <li>Un archivo <code>.nave</code> con la estructura correcta.</li>
+                                <li>Registro con <code>__DOCKMASTER.registerApp()</code>.</li>
+                                <li>Páginas registradas con <code>__DOCKMASTER.registerPage()</code>.</li>
+                                <li>Función <code>load()</code> asíncrona que retorna <code>true</code>.</li>
+                                <li>HTML dentro de <code>render()</code> usando clases CSS de VaciOS (opcional).</li>
+                            </ul>
+                            <p><strong>Puedes pedir:</strong></p>
+                            <ul class="friendly-list">
+                                <li>"Añade un juego simple de adivinanza."</li>
+                                <li>"Haz que sea fullscreen con un canvas."</li>
+                                <li>"Incluye un botón que cambie el tema usando __MIZU.setTheme()."</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            }
+        },
+
+        // 15. Colofón
+        page15: {
+            id: 'page15',
+            label: '🏁 Colofón',
+            tomo: 5,
+            render: function(container) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2rem 1rem; font-family: system-ui, sans-serif;">
+                        <div style="font-size: 4rem; margin-bottom: 1rem;">🏁</div>
+                        <h1 style="font-size: 2.5rem; color: #2c3e50; margin: 0.5rem 0;">¡Has completado el Tomo 5!</h1>
+                        <p style="font-size: 1.2rem; color: #7f8c8d; max-width: 600px; margin: 1rem auto;">
+                            Ahora conoces la arquitectura de VaciOS v2.2.0, cada uno de sus módulos,
+                            y cómo crear tus propias naves.
+                        </p>
+                        <div style="border-top: 2px dashed #bdc3c7; width: 60%; margin: 2rem auto; padding-top: 1.5rem; opacity: 0.7;">
+                            <p style="font-size: 1.1rem;">"El conocimiento es el combustible de la nave."</p>
+                            <p style="margin-top: 0.5rem; font-size: 0.9rem;">— Moisés Núñez</p>
+                        </div>
+                        <div style="margin-top: 2rem; display:flex; justify-content:center; gap:1rem; flex-wrap:wrap;">
+                            <span style="background:#ecf0f1; padding:0.5rem 1rem; border-radius:20px;">📚 15 páginas</span>
+                            <span style="background:#ecf0f1; padding:0.5rem 1rem; border-radius:20px;">⚙️ 7 módulos</span>
+                            <span style="background:#ecf0f1; padding:0.5rem 1rem; border-radius:20px;">🚀 1 puerto</span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    };
+
+    // ---- Carga de la nave ----
+    async function load() {
+        console.log(`[${APP_NAME}] Atracando nave v${VERSION}...`);
+        try {
+            for (const [id, page] of Object.entries(PAGES)) {
+                __DOCKMASTER.registerPage(APP_NAME, id, page.render, page.label, page.tomo);
+                console.log(`[${APP_NAME}] Página '${id}' registrada.`);
+            }
+            console.log(`[${APP_NAME}] ✅ Nave lista (${Object.keys(PAGES).length} páginas).`);
+            return true;
+        } catch (err) {
+            console.error(`[${APP_NAME}] Error en load():`, err);
+            return false;
+        }
+    }
+
+    // ---- Registrar la nave ----
+    if (typeof window !== 'undefined' && window.__DOCKMASTER) {
+        const D = window.__DOCKMASTER;
+        console.log('[book-t5] __DOCKMASTER disponible. Registrando nave...');
+        D.registerApp(APP_NAME, {
+            fullscreen: false,
+            description: 'Tomo 5: VaciOS v2.2.0 – Guía Completa del Sistema (15 páginas)',
+            version: VERSION,
+            load: load,
+            onActivate: () => console.log(`[${APP_NAME}] Nave activada.`),
+            onDeactivate: () => console.log(`[${APP_NAME}] Nave desactivada.`)
+        });
+        console.log(`✅ [${APP_NAME}] Registrada en __DOCKMASTER (v${VERSION}).`);
+    } else {
+        console.warn('[book-t5] __DOCKMASTER no disponible. Esperando...');
+        setTimeout(() => {
+            if (window.__DOCKMASTER) {
+                const D = window.__DOCKMASTER;
+                console.log('[book-t5] __DOCKMASTER ahora disponible. Registrando...');
+                D.registerApp(APP_NAME, {
+                    fullscreen: false,
+                    description: 'Tomo 5: VaciOS v2.2.0 – Guía Completa del Sistema (15 páginas)',
+                    version: VERSION,
+                    load: load,
+                    onActivate: () => console.log(`[${APP_NAME}] Nave activada.`),
+                    onDeactivate: () => console.log(`[${APP_NAME}] Nave desactivada.`)
+                });
+                console.log(`✅ [${APP_NAME}] Registrada en __DOCKMASTER (v${VERSION}).`);
+            } else {
+                console.error('[book-t5] __DOCKMASTER no disponible incluso después de esperar.');
+            }
+        }, 100);
+    }
+})();

@@ -1,0 +1,518 @@
+// evolution.nave - Línea de tiempo de la evolución de VaciOS (v1.0.0)
+// Infografía interactiva tipo árbol (como distros de Linux)
+// Muestra la evolución desde v1.0.0 hasta v2.2.0 con ramificaciones.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+(function evolution() {
+    'use strict';
+
+    const APP_NAME = 'evolution';
+    const VERSION = '1.0.0';
+
+    // ---- Datos del árbol de evolución ----
+    const treeData = {
+        id: 'root',
+        label: 'VaciOS',
+        description: 'Sistema de Libros Digitales Multi-App',
+        color: '#f0e6d0',
+        children: [
+            {
+                id: 'v1',
+                label: 'v1.x Legacy',
+                description: 'Arquitectura monolítica (2025)',
+                color: '#6c757d',
+                children: [
+                    {
+                        id: 'v1.0.0',
+                        label: 'v1.0.0',
+                        description: 'El Origen de los Modelos (15 modelos X)',
+                        year: '2025',
+                        color: '#8b949e',
+                        icon: '📘',
+                        features: ['Persistence', 'Registry', 'Events', 'Styles'],
+                    },
+                    {
+                        id: 'v1.2.0',
+                        label: 'v1.2.0',
+                        description: 'La Simplificación (unificación del núcleo)',
+                        year: '2025',
+                        color: '#8b949e',
+                        icon: '📜',
+                        features: ['waterfall.js', 'ignite.js', 'páginas X1'],
+                    },
+                    {
+                        id: 'v1.3.0',
+                        label: 'v1.3.0',
+                        description: 'La Revolución Multi-app',
+                        year: '2025',
+                        color: '#8b949e',
+                        icon: '🌟',
+                        features: ['Eventos', 'Órganos', 'Contextos', 'aakitekuto'],
+                    },
+                ],
+            },
+            {
+                id: 'v2',
+                label: 'v2.x Moderno',
+                description: 'Arquitectura minimalista (2026)',
+                color: '#238636',
+                children: [
+                    {
+                        id: 'v2.0.0',
+                        label: 'v2.0.0',
+                        description: 'El Puerto Espacial (core minimalista)',
+                        year: '2026',
+                        color: '#2ea043',
+                        icon: '🚀',
+                        features: ['core.js', 'loader.js', 'dockmaster', 'dock', 'styles'],
+                    },
+                    {
+                        id: 'v2.1.0',
+                        label: 'v2.1.0',
+                        description: 'Nomenclatura unificada',
+                        year: '2026',
+                        color: '#2ea043',
+                        icon: '📝',
+                        features: ['aakitekuto → dockmaster', 'waterfall → dock', '*.mizu → *.nave'],
+                    },
+                    {
+                        id: 'v2.2.0',
+                        label: 'v2.2.0',
+                        description: 'Ecosistema coherente',
+                        year: '2026',
+                        color: '#2ea043',
+                        icon: '🏗️',
+                        features: ['lighthouse', 'opscenter', 'hauler', 'compatibilidad file://'],
+                        children: [
+                            {
+                                id: 'fullscreen',
+                                label: 'Fullscreen Apps',
+                                description: 'Space Dodger, Notes Dock, File Converter',
+                                color: '#58a6ff',
+                                icon: '🖥️',
+                                features: ['renderFullscreen', 'canvas', 'UI inmersiva'],
+                            },
+                            {
+                                id: 'legacy',
+                                label: 'Modo Legado',
+                                description: 'Book T5, compatibilidad con apps v1.x',
+                                color: '#f0883e',
+                                icon: '📚',
+                                features: ['layout clásico', 'páginas con tomo', 'navegación por pestañas'],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    };
+
+    // ---- Estado de la nave ----
+    let canvas = null;
+    let ctx = null;
+    let container = null;
+    let selectedNode = null;
+    let nodes = []; // Lista plana de nodos con coordenadas
+
+    // ---- Constantes de dibujo ----
+    const LEVEL_SPACING = 180;
+    const NODE_RADIUS = 30;
+    const FONT_SIZE = 12;
+    const DETAIL_PANEL_WIDTH = 280;
+
+    // ---- Funciones de utilidad ----
+    function getColor(hex, opacity = 1) {
+        // Para degradados
+        return hex;
+    }
+
+    // ---- Algoritmo de posicionamiento de árbol ----
+    function layoutTree(node, x, y, level, verticalSpacing) {
+        const children = node.children || [];
+        const nodeWidth = NODE_RADIUS * 2 + 20;
+        const nodeHeight = NODE_RADIUS * 2 + 20;
+
+        // Almacenar posición del nodo
+        node.x = x;
+        node.y = y;
+        node.level = level;
+
+        if (children.length === 0) {
+            return { width: nodeWidth, height: nodeHeight };
+        }
+
+        // Posicionar hijos recursivamente
+        let totalHeight = 0;
+        const childPositions = [];
+        const childSpacing = verticalSpacing || 60;
+
+        for (let i = 0; i < children.length; i++) {
+            const child = children[i];
+            const childY = y + nodeHeight / 2 + childSpacing + totalHeight;
+            const childLayout = layoutTree(child, x + LEVEL_SPACING, childY, level + 1, childSpacing * 0.8);
+            childPositions.push(childLayout);
+            totalHeight += childLayout.height + childSpacing;
+        }
+
+        // Ajustar el centro del nodo padre para que quede centrado con los hijos
+        const childrenTotalHeight = totalHeight - childSpacing;
+        const startY = y + nodeHeight / 2 + childSpacing;
+        const endY = startY + childrenTotalHeight;
+        const centerY = (startY + endY) / 2;
+        // Si hay hijos, centrar el padre verticalmente en el rango de los hijos
+        if (children.length > 0) {
+            // Pero no movemos el padre porque ya está fijo, solo ajustamos el espaciado de los hijos
+            // Mejor: reposicionar los hijos para que el padre quede en el centro
+            const offset = centerY - y;
+            for (const child of children) {
+                child.y -= offset;
+            }
+            // Recalcular las posiciones de los hijos (recursivamente) después de moverlos
+            // No es necesario porque ya están calculadas, pero ajustamos las y de los subhijos
+            // Re-ejecutar layoutTree con el centro ajustado no es trivial, mejor dejarlo así.
+        }
+
+        return { width: nodeWidth + LEVEL_SPACING, height: totalHeight + nodeHeight };
+    }
+
+    function computeLayout(root) {
+        // Iniciar desde una posición fija
+        root.x = 80;
+        root.y = 200;
+        root.level = 0;
+        layoutTree(root, root.x, root.y, 0, 60);
+        // Recopilar todos los nodos en una lista plana
+        const flatNodes = [];
+        function collect(node) {
+            flatNodes.push(node);
+            if (node.children) {
+                for (const child of node.children) {
+                    collect(child);
+                }
+            }
+        }
+        collect(root);
+        return flatNodes;
+    }
+
+    // ---- Dibujar en canvas ----
+    function drawTree(ctx, flatNodes, root, containerWidth, containerHeight) {
+        ctx.clearRect(0, 0, containerWidth, containerHeight);
+
+        // Fondo
+        const gradient = ctx.createRadialGradient(containerWidth / 2, containerHeight / 2, 100, containerWidth / 2, containerHeight / 2, containerWidth * 0.8);
+        gradient.addColorStop(0, '#161b22');
+        gradient.addColorStop(1, '#0d1117');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, containerWidth, containerHeight);
+
+        // Dibujar conexiones (líneas entre padres e hijos)
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#30363d';
+        ctx.shadowColor = 'rgba(0,0,0,0.3)';
+        ctx.shadowBlur = 6;
+        function drawConnections(node) {
+            if (!node.children) return;
+            for (const child of node.children) {
+                ctx.beginPath();
+                ctx.moveTo(node.x + NODE_RADIUS, node.y);
+                ctx.lineTo(node.x + NODE_RADIUS + 20, node.y);
+                ctx.lineTo(node.x + NODE_RADIUS + 20, child.y);
+                ctx.lineTo(child.x - NODE_RADIUS, child.y);
+                ctx.stroke();
+                drawConnections(child);
+            }
+        }
+        drawConnections(root);
+
+        // Dibujar nodos
+        for (const node of flatNodes) {
+            const x = node.x;
+            const y = node.y;
+            const radius = NODE_RADIUS;
+            const isSelected = selectedNode === node;
+
+            // Sombra
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = 15;
+
+            // Círculo del nodo
+            const gradient2 = ctx.createRadialGradient(x - 5, y - 5, 5, x, y, radius);
+            const baseColor = node.color || '#6c757d';
+            gradient2.addColorStop(0, lightenColor(baseColor, 30));
+            gradient2.addColorStop(1, baseColor);
+            ctx.fillStyle = gradient2;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Borde (resaltar seleccionado)
+            ctx.shadowBlur = isSelected ? 20 : 0;
+            ctx.strokeStyle = isSelected ? '#f0e6d0' : (node.children && node.children.length > 0 ? '#f0883e' : '#30363d');
+            ctx.lineWidth = isSelected ? 4 : 2;
+            ctx.stroke();
+
+            ctx.shadowBlur = 0;
+
+            // Icono o texto
+            ctx.fillStyle = '#fff';
+            ctx.font = `${FONT_SIZE + 2}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const label = node.label || node.id || '?';
+            // Si el nodo tiene icono, mostrarlo
+            if (node.icon) {
+                ctx.font = `24px sans-serif`;
+                ctx.fillText(node.icon, x, y - 2);
+            } else {
+                ctx.font = `${FONT_SIZE - 2}px sans-serif`;
+                ctx.fillText(label.length > 8 ? label.substring(0, 6) + '…' : label, x, y);
+            }
+
+            // Etiqueta pequeña debajo del nodo
+            ctx.fillStyle = '#8b949e';
+            ctx.font = `${FONT_SIZE - 2}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            if (node.description && node.description.length < 20) {
+                ctx.fillText(node.description, x, y + radius + 6);
+            } else if (node.year) {
+                ctx.fillText(`(${node.year})`, x, y + radius + 6);
+            }
+        }
+
+        // Leyenda
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#8b949e';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText('Legado (v1.x)', 20, 20);
+        ctx.fillStyle = '#6c757d';
+        ctx.fillRect(100, 22, 12, 12);
+        ctx.fillStyle = '#8b949e';
+        ctx.fillText('Moderno (v2.x)', 20, 40);
+        ctx.fillStyle = '#238636';
+        ctx.fillRect(100, 42, 12, 12);
+        ctx.fillStyle = '#8b949e';
+        ctx.fillText('Rama fullscreen', 20, 60);
+        ctx.fillStyle = '#58a6ff';
+        ctx.fillRect(100, 62, 12, 12);
+
+        // Panel de detalles si hay nodo seleccionado
+        if (selectedNode) {
+            drawDetailPanel(ctx, selectedNode, containerWidth, containerHeight);
+        }
+    }
+
+    function drawDetailPanel(ctx, node, containerWidth, containerHeight) {
+        const panelX = containerWidth - DETAIL_PANEL_WIDTH - 20;
+        const panelY = 40;
+        const panelW = DETAIL_PANEL_WIDTH;
+        const panelH = 180;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.fillStyle = '#161b22';
+        ctx.strokeStyle = '#30363d';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(panelX, panelY, panelW, panelH, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#e6edf3';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        const icon = node.icon || '📦';
+        ctx.fillText(`${icon} ${node.label || node.id}`, panelX + 16, panelY + 12);
+
+        ctx.fillStyle = '#8b949e';
+        ctx.font = '13px sans-serif';
+        ctx.fillText(node.description || 'Sin descripción', panelX + 16, panelY + 40);
+
+        if (node.year) {
+            ctx.fillStyle = '#58a6ff';
+            ctx.font = '12px sans-serif';
+            ctx.fillText(`📅 ${node.year}`, panelX + 16, panelY + 64);
+        }
+
+        if (node.features && node.features.length > 0) {
+            ctx.fillStyle = '#e6edf3';
+            ctx.font = '12px sans-serif';
+            ctx.fillText('Características:', panelX + 16, panelY + 88);
+            ctx.fillStyle = '#8b949e';
+            ctx.font = '11px sans-serif';
+            const features = node.features.join(' · ');
+            const lines = wrapText(ctx, features, panelW - 32, 14);
+            let yOffset = panelY + 108;
+            for (const line of lines) {
+                ctx.fillText(line, panelX + 16, yOffset);
+                yOffset += 16;
+            }
+        }
+
+        // Botón cerrar (opcional)
+        ctx.fillStyle = '#6c757d';
+        ctx.font = '18px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'top';
+        ctx.fillText('✕', panelX + panelW - 16, panelY + 8);
+        // Detectar clic en la X (se maneja en evento click)
+    }
+
+    function wrapText(ctx, text, maxWidth, lineHeight) {
+        const words = text.split(' ');
+        const lines = [];
+        let currentLine = '';
+        for (const word of words) {
+            const testLine = currentLine + (currentLine ? ' ' : '') + word;
+            const metrics = ctx.measureText(testLine);
+            if (metrics.width > maxWidth) {
+                lines.push(currentLine);
+                currentLine = word;
+            } else {
+                currentLine = testLine;
+            }
+        }
+        if (currentLine) lines.push(currentLine);
+        return lines;
+    }
+
+    function lightenColor(hex, percent) {
+        // Simple lighten
+        const num = parseInt(hex.replace('#', ''), 16);
+        const r = Math.min(255, (num >> 16) + percent);
+        const g = Math.min(255, ((num >> 8) & 0x00FF) + percent);
+        const b = Math.min(255, (num & 0x0000FF) + percent);
+        return `#${(1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1)}`;
+    }
+
+    // ---- Eventos ----
+    function handleCanvasClick(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const mouseX = (e.clientX - rect.left) * scaleX;
+        const mouseY = (e.clientY - rect.top) * scaleY;
+
+        // Buscar nodo más cercano
+        let closest = null;
+        let minDist = 40;
+        for (const node of nodes) {
+            const dx = node.x - mouseX;
+            const dy = node.y - mouseY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < minDist) {
+                minDist = dist;
+                closest = node;
+            }
+        }
+        if (closest) {
+            selectedNode = closest;
+        } else {
+            // Comprobar si se hizo clic en la X del panel de detalles
+            const panelX = canvas.width - DETAIL_PANEL_WIDTH - 20;
+            const panelY = 40;
+            const panelW = DETAIL_PANEL_WIDTH;
+            const panelH = 180;
+            if (selectedNode && mouseX > panelX + panelW - 40 && mouseX < panelX + panelW - 10 && mouseY > panelY + 4 && mouseY < panelY + 30) {
+                selectedNode = null;
+            } else {
+                selectedNode = null;
+            }
+        }
+        drawTree(ctx, nodes, treeData, canvas.width, canvas.height);
+    }
+
+    // ---- Renderizado fullscreen ----
+    function renderFullscreen(containerEl) {
+        container = containerEl;
+        container.innerHTML = '';
+
+        // Crear canvas
+        canvas = document.createElement('canvas');
+        canvas.style.cssText = 'width:100%; height:100%; display:block;';
+        container.appendChild(canvas);
+        ctx = canvas.getContext('2d');
+
+        // Ajustar tamaño
+        function resize() {
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            // Recalcular layout si es necesario
+            nodes = computeLayout(treeData);
+            drawTree(ctx, nodes, treeData, canvas.width, canvas.height);
+        }
+
+        window.addEventListener('resize', resize);
+
+        // Evento click
+        canvas.addEventListener('click', handleCanvasClick);
+
+        // Inicializar
+        resize();
+
+        // Estilo global para roundRect si no está definido
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+                if (r > w / 2) r = w / 2;
+                if (r > h / 2) r = h / 2;
+                this.moveTo(x + r, y);
+                this.lineTo(x + w - r, y);
+                this.quadraticCurveTo(x + w, y, x + w, y + r);
+                this.lineTo(x + w, y + h - r);
+                this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                this.lineTo(x + r, y + h);
+                this.quadraticCurveTo(x, y + h, x, y + h - r);
+                this.lineTo(x, y + r);
+                this.quadraticCurveTo(x, y, x + r, y);
+                return this;
+            };
+        }
+
+        console.log('[evolution] UI cargada.');
+    }
+
+    // ---- Carga de la nave ----
+    async function load() {
+        console.log(`[${APP_NAME}] Cargando v${VERSION}...`);
+        return true;
+    }
+
+    // ---- Registrar la nave ----
+    if (typeof window !== 'undefined' && window.__DOCKMASTER) {
+        const D = window.__DOCKMASTER;
+        D.registerApp(APP_NAME, {
+            fullscreen: true,
+            description: 'Línea de tiempo interactiva de la evolución de VaciOS (infografía tipo árbol)',
+            version: VERSION,
+            load: load,
+            renderFullscreen: renderFullscreen,
+            onActivate: () => console.log(`[${APP_NAME}] Nave activada.`),
+            onDeactivate: () => console.log(`[${APP_NAME}] Nave desactivada.`)
+        });
+        console.log(`✅ [${APP_NAME}] Registrada en __DOCKMASTER (v${VERSION}).`);
+    } else {
+        console.warn('[evolution] __DOCKMASTER no disponible. Esperando...');
+        setTimeout(() => {
+            if (window.__DOCKMASTER) {
+                const D = window.__DOCKMASTER;
+                D.registerApp(APP_NAME, {
+                    fullscreen: true,
+                    description: 'Línea de tiempo interactiva de la evolución de VaciOS',
+                    version: VERSION,
+                    load: load,
+                    renderFullscreen: renderFullscreen,
+                    onActivate: () => console.log(`[${APP_NAME}] Nave activada.`),
+                    onDeactivate: () => console.log(`[${APP_NAME}] Nave desactivada.`)
+                });
+                console.log(`✅ [${APP_NAME}] Registrada en __DOCKMASTER (v${VERSION}).`);
+            } else {
+                console.error('[evolution] __DOCKMASTER no disponible incluso después de esperar.');
+            }
+        }, 100);
+    }
+})();

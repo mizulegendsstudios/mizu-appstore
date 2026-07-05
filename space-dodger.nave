@@ -1,0 +1,411 @@
+// space-dodger.nave - Minijuego arcade "Space Dodger" (v2.2.0)
+// Compatible con VaciOS v2.2.0 (Puerto Espacial)
+// Modo: fullscreen (ocupa toda la pantalla)
+// Usa __DOCKMASTER para registrarse y __MIZU para eventos (opcional).
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+(function spaceDodger() {
+    'use strict';
+
+    const APP_NAME = 'space-dodger';
+    const VERSION = '2.2.0';
+
+    // ---- Estado del juego ----
+    const GameState = {
+        score: 0,
+        highScore: parseInt(localStorage.getItem('spaceDodger_highScore')) || 0,
+        gameOver: false,
+        running: false,
+        player: { x: 50, y: 90, width: 30, height: 30 },
+        asteroids: [],
+        frameId: null,
+        lastTimestamp: 0,
+        spawnTimer: 0,
+        speed: 2,
+    };
+
+    // ---- Constantes ----
+    const CANVAS_SIZE = { width: 400, height: 600 };
+    const PLAYER_SPEED = 5;
+    const ASTEROID_SIZE = 20;
+    const SPAWN_INTERVAL = 30; // frames
+
+    // ---- DOM y Canvas ----
+    let container = null;
+    let canvas = null;
+    let ctx = null;
+    let scoreElement = null;
+    let highScoreElement = null;
+    let gameOverElement = null;
+
+    // ---- Funciones del juego ----
+    function initGame() {
+        GameState.score = 0;
+        GameState.gameOver = false;
+        GameState.running = true;
+        GameState.asteroids = [];
+        GameState.spawnTimer = 0;
+        GameState.speed = 2;
+        GameState.player.x = CANVAS_SIZE.width / 2 - GameState.player.width / 2;
+        GameState.player.y = CANVAS_SIZE.height * 0.85;
+        if (gameOverElement) gameOverElement.style.display = 'none';
+        updateScoreDisplay();
+        loop();
+    }
+
+    function spawnAsteroid() {
+        const x = Math.random() * (CANVAS_SIZE.width - ASTEROID_SIZE);
+        const size = ASTEROID_SIZE * (0.8 + Math.random() * 0.4);
+        GameState.asteroids.push({
+            x: x,
+            y: -size,
+            width: size,
+            height: size,
+            speed: 1 + Math.random() * 1.5,
+        });
+    }
+
+    function update() {
+        if (!GameState.running || GameState.gameOver) return;
+
+        // Movimiento del jugador (teclado) – se maneja con event listeners
+
+        // Spawn de asteroides
+        GameState.spawnTimer++;
+        if (GameState.spawnTimer >= SPAWN_INTERVAL) {
+            spawnAsteroid();
+            GameState.spawnTimer = 0;
+        }
+
+        // Mover asteroides
+        for (let i = GameState.asteroids.length - 1; i >= 0; i--) {
+            const ast = GameState.asteroids[i];
+            ast.y += ast.speed + GameState.speed * 0.2;
+
+            // Colisión con jugador
+            const px = GameState.player.x;
+            const py = GameState.player.y;
+            const pw = GameState.player.width;
+            const ph = GameState.player.height;
+            if (ast.x < px + pw && ast.x + ast.width > px &&
+                ast.y < py + ph && ast.y + ast.height > py) {
+                gameOver();
+                return;
+            }
+
+            // Fuera de pantalla
+            if (ast.y > CANVAS_SIZE.height) {
+                GameState.asteroids.splice(i, 1);
+                GameState.score++;
+                updateScoreDisplay();
+            }
+        }
+
+        // Aumentar dificultad gradualmente
+        GameState.speed += 0.001;
+    }
+
+    function render() {
+        if (!ctx) return;
+
+        // Limpiar canvas
+        ctx.clearRect(0, 0, CANVAS_SIZE.width, CANVAS_SIZE.height);
+
+        // Fondo estrellado
+        ctx.fillStyle = '#0a0a1a';
+        ctx.fillRect(0, 0, CANVAS_SIZE.width, CANVAS_SIZE.height);
+
+        // Estrellas (fondo)
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        for (let i = 0; i < 50; i++) {
+            const sx = (i * 97) % CANVAS_SIZE.width;
+            const sy = (i * 131 + GameState.score * 0.5) % CANVAS_SIZE.height;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 1 + (i % 3), 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Jugador (nave)
+        const px = GameState.player.x;
+        const py = GameState.player.y;
+        const pw = GameState.player.width;
+        const ph = GameState.player.height;
+
+        // Nave con efecto neón
+        ctx.shadowColor = '#00ffff';
+        ctx.shadowBlur = 15;
+
+        // Cuerpo principal
+        ctx.fillStyle = '#00ccff';
+        ctx.beginPath();
+        ctx.moveTo(px + pw/2, py);
+        ctx.lineTo(px + pw, py + ph);
+        ctx.lineTo(px, py + ph);
+        ctx.closePath();
+        ctx.fill();
+
+        // Cabina
+        ctx.shadowBlur = 5;
+        ctx.fillStyle = '#66eeff';
+        ctx.beginPath();
+        ctx.arc(px + pw/2, py + ph * 0.3, pw * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Motor (llama)
+        ctx.shadowColor = '#ff6600';
+        ctx.shadowBlur = 20;
+        ctx.fillStyle = '#ff4400';
+        ctx.beginPath();
+        ctx.moveTo(px + pw * 0.3, py + ph);
+        ctx.lineTo(px + pw/2, py + ph + 8);
+        ctx.lineTo(px + pw * 0.7, py + ph);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.shadowBlur = 0;
+
+        // Asteroides
+        for (const ast of GameState.asteroids) {
+            ctx.shadowColor = '#ff4444';
+            ctx.shadowBlur = 10;
+            ctx.fillStyle = '#cc3333';
+            ctx.beginPath();
+            ctx.arc(ast.x + ast.width/2, ast.y + ast.height/2, ast.width/2, 0, Math.PI * 2);
+            ctx.fill();
+            // Detalle
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#ff6666';
+            ctx.beginPath();
+            ctx.arc(ast.x + ast.width * 0.3, ast.y + ast.height * 0.3, ast.width * 0.15, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.shadowBlur = 0;
+    }
+
+    function loop(timestamp) {
+        if (!GameState.running) return;
+        update();
+        render();
+        GameState.frameId = requestAnimationFrame(loop);
+    }
+
+    function gameOver() {
+        GameState.gameOver = true;
+        GameState.running = false;
+        if (GameState.frameId) {
+            cancelAnimationFrame(GameState.frameId);
+            GameState.frameId = null;
+        }
+
+        if (GameState.score > GameState.highScore) {
+            GameState.highScore = GameState.score;
+            localStorage.setItem('spaceDodger_highScore', GameState.highScore.toString());
+        }
+
+        if (gameOverElement) {
+            gameOverElement.style.display = 'block';
+            gameOverElement.innerHTML = `
+                💥 Game Over<br>
+                Puntuación: ${GameState.score}<br>
+                Récord: ${GameState.highScore}
+                <button onclick="window._spaceDodgerRestart()" style="
+                    margin-top: 10px;
+                    padding: 10px 30px;
+                    font-size: 1.2rem;
+                    background: #00ccff;
+                    border: none;
+                    border-radius: 30px;
+                    color: #000;
+                    cursor: pointer;
+                    font-weight: bold;
+                    box-shadow: 0 0 20px #00ccff;
+                ">🔄 Reintentar</button>
+            `;
+        }
+
+        // Actualizar high score en UI
+        updateScoreDisplay();
+    }
+
+    function updateScoreDisplay() {
+        if (scoreElement) {
+            scoreElement.textContent = `🏆 ${GameState.score}`;
+        }
+        if (highScoreElement) {
+            highScoreElement.textContent = `⭐ ${GameState.highScore}`;
+        }
+    }
+
+    // ---- Control de teclado ----
+    function handleKeyDown(e) {
+        if (e.key === 'ArrowLeft' || e.key === 'a') {
+            e.preventDefault();
+            GameState.player.x = Math.max(0, GameState.player.x - PLAYER_SPEED);
+        } else if (e.key === 'ArrowRight' || e.key === 'd') {
+            e.preventDefault();
+            const maxX = CANVAS_SIZE.width - GameState.player.width;
+            GameState.player.x = Math.min(maxX, GameState.player.x + PLAYER_SPEED);
+        } else if (e.key === 'r' || e.key === 'R') {
+            if (GameState.gameOver) {
+                window._spaceDodgerRestart();
+            }
+        } else if (e.key === ' ' || e.key === 'Enter') {
+            if (GameState.gameOver) {
+                e.preventDefault();
+                window._spaceDodgerRestart();
+            }
+        }
+    }
+
+    // ---- Renderizado fullscreen ----
+    function renderFullscreen(containerEl) {
+        container = containerEl;
+        container.innerHTML = `
+            <div style="
+                width: 100vw;
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                background: #0a0a1a;
+                font-family: 'Courier New', monospace;
+                color: #ffffff;
+                position: relative;
+                overflow: hidden;
+            ">
+                <div style="
+                    display: flex;
+                    justify-content: space-between;
+                    width: 100%;
+                    max-width: 420px;
+                    padding: 0 20px;
+                    margin-bottom: 10px;
+                    font-size: 1.2rem;
+                    z-index: 10;
+                ">
+                    <span id="scoreDisplay">🏆 0</span>
+                    <span id="highScoreDisplay">⭐ ${GameState.highScore}</span>
+                </div>
+                <canvas id="gameCanvas" style="
+                    border: 2px solid #00ccff;
+                    border-radius: 12px;
+                    box-shadow: 0 0 40px rgba(0,204,255,0.2);
+                    background: #0a0a1a;
+                    width: 100%;
+                    max-width: 420px;
+                    aspect-ratio: 400/600;
+                    touch-action: none;
+                "></canvas>
+                <div id="gameOverOverlay" style="
+                    display: none;
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(0,0,0,0.85);
+                    padding: 30px 40px;
+                    border-radius: 20px;
+                    text-align: center;
+                    font-size: 1.5rem;
+                    border: 2px solid #ff4444;
+                    box-shadow: 0 0 60px rgba(255,68,68,0.3);
+                    z-index: 20;
+                    min-width: 250px;
+                "></div>
+                <div style="
+                    margin-top: 10px;
+                    font-size: 0.8rem;
+                    opacity: 0.5;
+                    color: #88aacc;
+                ">← → o A/D · R para reiniciar</div>
+            </div>
+        `;
+
+        canvas = document.getElementById('gameCanvas');
+        ctx = canvas.getContext('2d');
+        scoreElement = document.getElementById('scoreDisplay');
+        highScoreElement = document.getElementById('highScoreDisplay');
+        gameOverElement = document.getElementById('gameOverOverlay');
+
+        // Ajustar canvas a resolución fija
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = CANVAS_SIZE.width;
+        canvas.height = CANVAS_SIZE.height;
+
+        // Exponer reinicio globalmente
+        window._spaceDodgerRestart = function() {
+            if (GameState.gameOver) {
+                initGame();
+            }
+        };
+
+        // Iniciar juego
+        initGame();
+
+        // Eventos de teclado
+        document.addEventListener('keydown', handleKeyDown);
+
+        // Soporte táctil (móvil)
+        let touchStartX = 0;
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            touchStartX = touch.clientX;
+        });
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!GameState.running) return;
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const relativeX = (touch.clientX - rect.left) / rect.width;
+            const maxX = CANVAS_SIZE.width - GameState.player.width;
+            GameState.player.x = Math.max(0, Math.min(maxX, relativeX * CANVAS_SIZE.width - GameState.player.width/2));
+        });
+        canvas.addEventListener('touchend', (e) => {
+            if (GameState.gameOver) {
+                window._spaceDodgerRestart();
+            }
+        });
+    }
+
+    // ---- Carga de la nave ----
+    async function load() {
+        console.log(`[${APP_NAME}] Cargando v${VERSION}...`);
+        // No hay páginas que cargar, todo está en el renderizado
+        return true;
+    }
+
+    // ---- Registro de la nave en __DOCKMASTER ----
+    if (typeof window !== 'undefined' && window.__DOCKMASTER) {
+        const D = window.__DOCKMASTER;
+        D.registerApp(APP_NAME, {
+            fullscreen: true,
+            description: 'Space Dodger - Arcade infinito',
+            version: VERSION,
+            load: load,
+            renderFullscreen: renderFullscreen,
+            onActivate: () => {
+                console.log(`[${APP_NAME}] Nave activada.`);
+                if (container) {
+                    initGame();
+                }
+            },
+            onDeactivate: () => {
+                console.log(`[${APP_NAME}] Nave desactivada.`);
+                GameState.running = false;
+                if (GameState.frameId) {
+                    cancelAnimationFrame(GameState.frameId);
+                    GameState.frameId = null;
+                }
+                document.removeEventListener('keydown', handleKeyDown);
+                // Limpiar referencia global
+                window._spaceDodgerRestart = undefined;
+            }
+        });
+        console.log(`✅ [${APP_NAME}] Registrada en __DOCKMASTER (v${VERSION}).`);
+    } else {
+        console.warn(`[${APP_NAME}] ⚠️ __DOCKMASTER no disponible.`);
+    }
+})();

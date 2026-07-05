@@ -1,0 +1,612 @@
+// market.nave - Tienda de aplicaciones para VaciOS (v1.1.3)
+// Catálogo de naves oficiales con instalación, desinstalación, descarga y calificación.
+// CORREGIDO: URL base actualizada a github.com/.../raw/...
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+(function market() {
+    'use strict';
+
+    const APP_NAME = 'market';
+    const VERSION = '1.1.3';
+
+    // ---- URL base para descargas (GitHub raw) ----
+    // NOTA: Los archivos .nave deben estar disponibles en esta ruta.
+    const BASE_URL = 'https://github.com/mizulegendsstudios/nunez/raw/refs/heads/main/src/app/';
+
+    // ---- Catálogo de aplicaciones oficiales ----
+    const CATALOG = [
+        {
+            id: 'book-t5',
+            name: '📚 VaciOS Guide',
+            description: 'Guía completa de VaciOS v2.2.0. 15 páginas con descripción del sistema, módulos, comparativas y guía de creación de naves.',
+            category: 'Educación',
+            author: 'Moisés Núñez',
+            version: '3.0.0',
+            icon: '📚',
+            fullscreen: false,
+            type: 'Legado',
+            features: ['15 páginas', 'Documentación', 'Guía paso a paso'],
+            file: 'book-t5.nave',
+        },
+        {
+            id: 'space-dodger',
+            name: '🛸 Space Dodger',
+            description: 'Juego arcade infinito. Esquiva asteroides y consigue la mayor puntuación. Fullscreen con controles de teclado y táctiles.',
+            category: 'Juegos',
+            author: 'Moisés Núñez',
+            version: '2.2.0',
+            icon: '🛸',
+            fullscreen: true,
+            type: 'Fullscreen',
+            features: ['Canvas', 'Controles táctiles', 'Puntuación persistente'],
+            file: 'space-dodger.nave',
+        },
+        {
+            id: 'notes-dock',
+            name: '📝 Notes Dock',
+            description: 'Canal de notas estilo Discord. Crea bloques con texto, imágenes, emojis, pins y favoritos. Persistencia real con IndexedDB.',
+            category: 'Utilidad',
+            author: 'Moisés Núñez',
+            version: '2.2.0',
+            icon: '📝',
+            fullscreen: true,
+            type: 'Fullscreen',
+            features: ['Bloques', 'Imágenes', 'Emojis', 'Pins', 'Favoritos', 'IndexedDB'],
+            file: 'notes-dock.nave',
+        },
+        {
+            id: 'file-converter',
+            name: '🔄 File Converter',
+            description: 'Convierte archivos .nave y .mizu a .js. Carga múltiples archivos, descarga individual o en ZIP.',
+            category: 'Herramienta',
+            author: 'Moisés Núñez',
+            version: '1.0.0',
+            icon: '🔄',
+            fullscreen: true,
+            type: 'Fullscreen',
+            features: ['Drag & Drop', 'Conversión masiva', 'Descarga ZIP'],
+            file: 'file-converter.nave',
+        },
+        {
+            id: 'evolution',
+            name: '🌳 Evolution Tree',
+            description: 'Infografía interactiva de la evolución de VaciOS. Árbol con ramas y nodos que muestran la historia del sistema.',
+            category: 'Educación',
+            author: 'Moisés Núñez',
+            version: '1.0.0',
+            icon: '🌳',
+            fullscreen: true,
+            type: 'Fullscreen',
+            features: ['Canvas', 'Nodos interactivos', 'Panel de detalles'],
+            file: 'evolution.nave',
+        },
+        {
+            id: 'market',
+            name: '🏪 VaciOS Market',
+            description: 'Tienda de aplicaciones para VaciOS. Catálogo de naves oficiales con instalación desde GitHub, desinstalación, descarga y calificación.',
+            category: 'Herramienta',
+            author: 'Moisés Núñez',
+            version: '1.1.3',
+            icon: '🏪',
+            fullscreen: true,
+            type: 'Fullscreen',
+            features: ['Catálogo', 'Calificación con estrellas', 'Instalación/desinstalación', 'Descarga desde GitHub'],
+            file: 'market.nave',
+        },
+    ];
+
+    // ---- Estado de calificaciones ----
+    const RATINGS_KEY = 'market_ratings';
+
+    function getRatings() {
+        try {
+            const raw = localStorage.getItem(RATINGS_KEY);
+            return raw ? JSON.parse(raw) : {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function saveRatings(ratings) {
+        localStorage.setItem(RATINGS_KEY, JSON.stringify(ratings));
+    }
+
+    function getAppRating(appId) {
+        const ratings = getRatings();
+        const data = ratings[appId];
+        if (!data) return { average: 0, count: 0 };
+        return { average: data.sum / data.count, count: data.count };
+    }
+
+    function rateApp(appId, stars) {
+        const ratings = getRatings();
+        if (!ratings[appId]) ratings[appId] = { sum: 0, count: 0 };
+        ratings[appId].sum += stars;
+        ratings[appId].count += 1;
+        saveRatings(ratings);
+    }
+
+    // ---- Estado de la nave ----
+    let currentView = 'catalog';
+    let selectedAppId = null;
+    let filterCategory = 'Todas';
+    let container = null;
+
+    // ---- Funciones auxiliares ----
+    function isAppInstalled(appId) {
+        return !!__MIZU.State.apps[appId];
+    }
+
+    function renderStars(rating) {
+        const full = Math.floor(rating);
+        const half = rating % 1 >= 0.5 ? 1 : 0;
+        const empty = 3 - full - half;
+        return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty);
+    }
+
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        const bg = type === 'error' ? '#da3633' : type === 'success' ? '#238636' : '#1f6feb';
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: ${bg};
+            color: #fff;
+            padding: 0.5rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            max-width: 90%;
+            text-align: center;
+        `;
+        document.body.appendChild(toast);
+        toast.offsetHeight;
+        toast.style.opacity = '1';
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 2500);
+    }
+
+    // ---- Descarga desde GitHub ----
+    async function downloadFromGitHub(fileName) {
+        const url = BASE_URL + fileName;
+        console.log(`[market] Descargando: ${url}`);
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText} (${url})`);
+            }
+            const content = await response.text();
+            return content;
+        } catch (err) {
+            console.error('[market] Error en descarga:', err);
+            throw new Error(`No se pudo descargar ${fileName}: ${err.message}`);
+        }
+    }
+
+    // ---- Renderizado ----
+    function renderCatalog() {
+        const apps = CATALOG;
+        let filtered = apps;
+        if (filterCategory !== 'Todas') {
+            filtered = apps.filter(app => app.category === filterCategory || app.type === filterCategory);
+        }
+
+        let html = `
+            <div style="
+                width: 100vw;
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+                background: #0d1117;
+                color: #e6edf3;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                overflow: hidden;
+                position: relative;
+            ">
+                <header style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 0.8rem 1.5rem;
+                    background: #161b22;
+                    border-bottom: 1px solid #30363d;
+                    flex-shrink: 0;
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
+                ">
+                    <div style="display:flex; align-items:center; gap:0.8rem;">
+                        <span style="font-size:1.8rem;">🏪</span>
+                        <h1 style="font-size:1.2rem; margin:0; font-weight:600;">VaciOS Market</h1>
+                        <span style="font-size:0.8rem; opacity:0.5; background:#21262d; padding:0.1rem 0.6rem; border-radius:12px;">${apps.length} apps</span>
+                    </div>
+                    <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                        <select id="filterSelect" style="
+                            background: #0d1117;
+                            color: #e6edf3;
+                            border: 1px solid #30363d;
+                            border-radius: 6px;
+                            padding: 0.3rem 0.8rem;
+                            font-size: 0.8rem;
+                            outline: none;
+                            cursor: pointer;
+                        ">
+                            <option value="Todas">📋 Todas</option>
+                            <option value="Juegos">🎮 Juegos</option>
+                            <option value="Utilidad">🔧 Utilidad</option>
+                            <option value="Educación">📖 Educación</option>
+                            <option value="Herramienta">🛠️ Herramienta</option>
+                            <option value="Fullscreen">🖥️ Fullscreen</option>
+                            <option value="Legado">📜 Legado</option>
+                        </select>
+                        <button id="refreshBtn" style="
+                            background:none; border:1px solid #30363d; border-radius:6px;
+                            padding:0.3rem 0.8rem; color:#e6edf3; cursor:pointer;
+                            font-size:0.8rem;
+                        ">⟳ Refrescar</button>
+                    </div>
+                </header>
+
+                <div style="
+                    flex:1;
+                    overflow-y:auto;
+                    padding: 1rem 1.5rem;
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                    gap: 1rem;
+                    align-content: start;
+                " id="appGrid">
+        `;
+
+        if (filtered.length === 0) {
+            html += `
+                <div style="grid-column: 1 / -1; display:flex; align-items:center; justify-content:center; height:200px; opacity:0.4; text-align:center;">
+                    <div>
+                        <div style="font-size:3rem;">🔍</div>
+                        <p style="margin:0.5rem 0 0;">No hay apps en esta categoría</p>
+                    </div>
+                </div>
+            `;
+        } else {
+            for (const app of filtered) {
+                const rating = getAppRating(app.id);
+                const installed = isAppInstalled(app.id);
+                const starsDisplay = rating.count > 0 ? renderStars(rating.average) : '☆☆☆';
+                const ratingText = rating.count > 0 ? `${rating.average.toFixed(1)} (${rating.count})` : 'Sin calificar';
+
+                html += `
+                    <div class="app-card" data-app-id="${app.id}" style="
+                        background: #161b22;
+                        border-radius: 12px;
+                        padding: 1rem;
+                        border: 1px solid #30363d;
+                        transition: all 0.2s;
+                        cursor: pointer;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 0.5rem;
+                    " onmouseenter="this.style.borderColor='#238636'; this.style.transform='translateY(-2px)'" onmouseleave="this.style.borderColor='#30363d'; this.style.transform='none'">
+                        <div style="display:flex; align-items:center; gap:0.8rem;">
+                            <span style="font-size:2rem;">${app.icon || '📦'}</span>
+                            <div style="flex:1; min-width:0;">
+                                <div style="font-weight:600; font-size:1.1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${app.name}</div>
+                                <div style="font-size:0.8rem; opacity:0.6;">${app.category} · ${app.author}</div>
+                            </div>
+                            ${installed ? '<span style="font-size:0.7rem; background:#238636; padding:0.05rem 0.5rem; border-radius:12px;">✔️ Instalada</span>' : ''}
+                        </div>
+                        <div style="font-size:0.85rem; opacity:0.8; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.4;">
+                            ${app.description}
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.3rem;">
+                            <div style="font-size:0.8rem; color:#f0883e;">
+                                ${starsDisplay}
+                                <span style="color:#8b949e; font-size:0.7rem; margin-left:0.3rem;">${ratingText}</span>
+                            </div>
+                            <div style="display:flex; gap:0.3rem;">
+                                <span style="font-size:0.7rem; background:#21262d; padding:0.05rem 0.5rem; border-radius:12px;">v${app.version}</span>
+                                ${app.fullscreen ? '<span style="font-size:0.7rem; background:#58a6ff; padding:0.05rem 0.5rem; border-radius:12px;">🖥️</span>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        html += `
+                </div>
+            </div>
+        `;
+
+        return html;
+    }
+
+    function renderDetail(appId) {
+        const app = CATALOG.find(a => a.id === appId);
+        if (!app) {
+            return `
+                <div style="display:flex; align-items:center; justify-content:center; height:100vh; color:#e6edf3; background:#0d1117;">
+                    <div style="text-align:center;">
+                        <div style="font-size:3rem;">❌</div>
+                        <h2>App no encontrada</h2>
+                        <button onclick="window._marketGoBack()" style="margin-top:1rem; padding:0.5rem 1.5rem; background:#238636; border:none; border-radius:6px; color:#fff; cursor:pointer; font-size:1rem;">← Volver al catálogo</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        const rating = getAppRating(appId);
+        const installed = isAppInstalled(appId);
+        const starsDisplay = rating.count > 0 ? renderStars(rating.average) : '☆☆☆';
+        const ratingText = rating.count > 0 ? `${rating.average.toFixed(1)} (${rating.count} votos)` : 'Sin calificar';
+
+        return `
+            <div style="
+                width: 100vw;
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+                background: #0d1117;
+                color: #e6edf3;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                overflow: hidden;
+                position: relative;
+            ">
+                <header style="display:flex; align-items:center; padding:0.8rem 1.5rem; background:#161b22; border-bottom:1px solid #30363d; flex-shrink:0; gap:1rem;">
+                    <button id="backBtn" style="background:none; border:none; color:#e6edf3; font-size:1.5rem; cursor:pointer; padding:0.2rem 0.5rem;">←</button>
+                    <span style="font-size:1.8rem;">${app.icon || '📦'}</span>
+                    <h1 style="font-size:1.4rem; margin:0; font-weight:600;">${app.name}</h1>
+                    <span style="font-size:0.8rem; opacity:0.5; margin-left:auto;">v${app.version}</span>
+                </header>
+
+                <div style="flex:1; overflow-y:auto; padding:1.5rem;">
+                    <div style="max-width:700px; margin:0 auto;">
+                        <div style="display:flex; gap:2rem; flex-wrap:wrap; margin-bottom:1.5rem;">
+                            <div style="flex:1; min-width:200px;">
+                                <div style="font-size:0.8rem; opacity:0.5;">Categoría</div>
+                                <div style="font-weight:500;">${app.category}</div>
+                                <div style="font-size:0.8rem; opacity:0.5; margin-top:0.5rem;">Autor</div>
+                                <div style="font-weight:500;">${app.author}</div>
+                                <div style="font-size:0.8rem; opacity:0.5; margin-top:0.5rem;">Tipo</div>
+                                <div style="font-weight:500;">${app.fullscreen ? '🖥️ Fullscreen' : '📜 Legado'}</div>
+                            </div>
+                            <div style="flex:1; min-width:200px;">
+                                <div style="font-size:0.8rem; opacity:0.5;">Calificación</div>
+                                <div style="font-size:1.5rem; color:#f0883e;">${starsDisplay}</div>
+                                <div style="font-size:0.8rem; opacity:0.6;">${ratingText}</div>
+                                <div style="margin-top:0.5rem; display:flex; gap:0.3rem;">
+                                    ${[1,2,3].map(s => `
+                                        <button class="rate-btn" data-stars="${s}" style="background:none; border:1px solid #30363d; border-radius:4px; color:#e6edf3; padding:0.2rem 0.6rem; cursor:pointer; font-size:0.9rem;">${s}⭐</button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="background:#161b22; padding:1rem; border-radius:8px; border:1px solid #30363d; margin-bottom:1.5rem;">
+                            <h3 style="margin:0 0 0.5rem 0; font-size:1rem;">Descripción</h3>
+                            <p style="margin:0; line-height:1.6;">${app.description}</p>
+                        </div>
+
+                        <div style="background:#161b22; padding:1rem; border-radius:8px; border:1px solid #30363d; margin-bottom:1.5rem;">
+                            <h3 style="margin:0 0 0.5rem 0; font-size:1rem;">Características</h3>
+                            <ul style="margin:0; padding-left:1.2rem; line-height:1.8;">
+                                ${app.features.map(f => `<li>${f}</li>`).join('')}
+                            </ul>
+                        </div>
+
+                        <div style="display:flex; gap:0.8rem; flex-wrap:wrap;">
+                            ${!installed ? `
+                                <button id="installBtn" style="background:#238636; border:none; border-radius:6px; padding:0.6rem 1.5rem; color:#fff; cursor:pointer; font-weight:600; font-size:1rem;">📥 Instalar</button>
+                            ` : `
+                                <button id="activateBtn" style="background:#1f6feb; border:none; border-radius:6px; padding:0.6rem 1.5rem; color:#fff; cursor:pointer; font-weight:600; font-size:1rem;">▶️ Activar</button>
+                                <button id="uninstallBtn" style="background:#da3633; border:none; border-radius:6px; padding:0.6rem 1.5rem; color:#fff; cursor:pointer; font-weight:600; font-size:1rem;">🗑️ Desinstalar</button>
+                            `}
+                            <button id="downloadBtn" style="background:none; border:1px solid #30363d; border-radius:6px; padding:0.6rem 1.5rem; color:#e6edf3; cursor:pointer; font-size:1rem;">⬇️ Descargar .nave</button>
+                        </div>
+
+                        <div style="margin-top:1rem; font-size:0.8rem; opacity:0.4;">
+                            ID: ${app.id} · Versión ${app.version} · Archivo: ${app.file || app.id + '.nave'}
+                        </div>
+                        <div style="font-size:0.7rem; opacity:0.3; margin-top:0.3rem;">
+                            📦 Los archivos se descargan desde: ${BASE_URL}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // ---- Renderizado principal ----
+    function render() {
+        if (!container) return;
+
+        let html;
+        if (currentView === 'catalog') {
+            html = renderCatalog();
+        } else {
+            html = renderDetail(selectedAppId);
+        }
+
+        container.innerHTML = html;
+
+        if (currentView === 'catalog') {
+            const filterSelect = document.getElementById('filterSelect');
+            if (filterSelect) {
+                filterSelect.value = filterCategory;
+                filterSelect.addEventListener('change', (e) => {
+                    filterCategory = e.target.value;
+                    render();
+                });
+            }
+
+            const refreshBtn = document.getElementById('refreshBtn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', () => {
+                    render();
+                    showToast('🔄 Catálogo actualizado');
+                });
+            }
+
+            const cards = container.querySelectorAll('.app-card');
+            cards.forEach(card => {
+                card.addEventListener('click', () => {
+                    const appId = card.dataset.appId;
+                    selectedAppId = appId;
+                    currentView = 'detail';
+                    render();
+                });
+            });
+        } else {
+            const backBtn = document.getElementById('backBtn');
+            if (backBtn) {
+                backBtn.addEventListener('click', () => {
+                    currentView = 'catalog';
+                    render();
+                });
+            }
+
+            const rateBtns = container.querySelectorAll('.rate-btn');
+            rateBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const stars = parseInt(btn.dataset.stars);
+                    rateApp(selectedAppId, stars);
+                    showToast(`⭐ Calificación de ${stars} estrella(s) guardada`);
+                    render();
+                });
+            });
+
+            const installBtn = document.getElementById('installBtn');
+            if (installBtn) {
+                installBtn.addEventListener('click', async () => {
+                    const app = CATALOG.find(a => a.id === selectedAppId);
+                    const fileName = app?.file || selectedAppId + '.nave';
+                    try {
+                        showToast(`📥 Descargando ${fileName}...`);
+                        const content = await downloadFromGitHub(fileName);
+                        new Function('window', 'document', content)(window, document);
+                        if (isAppInstalled(selectedAppId)) {
+                            showToast(`✅ ${selectedAppId} instalada correctamente`);
+                            render();
+                        } else {
+                            try {
+                                await __DOCKMASTER.loadApp(selectedAppId);
+                                showToast(`✅ ${selectedAppId} instalada y activada`);
+                                render();
+                            } catch (err) {
+                                showToast(`⚠️ La nave se descargó pero no se registró. Revisa la consola.`, 'error');
+                            }
+                        }
+                    } catch (err) {
+                        showToast(`❌ Error al instalar: ${err.message}`, 'error');
+                    }
+                });
+            }
+
+            const activateBtn = document.getElementById('activateBtn');
+            if (activateBtn) {
+                activateBtn.addEventListener('click', async () => {
+                    try {
+                        await __DOCKMASTER.loadApp(selectedAppId);
+                        showToast(`▶️ ${selectedAppId} activada`);
+                        render();
+                    } catch (err) {
+                        showToast(`❌ Error al activar: ${err.message}`, 'error');
+                    }
+                });
+            }
+
+            const uninstallBtn = document.getElementById('uninstallBtn');
+            if (uninstallBtn) {
+                uninstallBtn.addEventListener('click', () => {
+                    if (confirm(`¿Desinstalar ${selectedAppId}?`)) {
+                        __DOCKMASTER.unloadApp(selectedAppId);
+                        showToast(`🗑️ ${selectedAppId} desinstalada`);
+                        render();
+                    }
+                });
+            }
+
+            const downloadBtn = document.getElementById('downloadBtn');
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', async () => {
+                    const app = CATALOG.find(a => a.id === selectedAppId);
+                    const fileName = app?.file || selectedAppId + '.nave';
+                    try {
+                        showToast(`⬇️ Descargando ${fileName}...`);
+                        const content = await downloadFromGitHub(fileName);
+                        const blob = new Blob([content], { type: 'text/javascript' });
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = fileName;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(link.href);
+                        showToast(`✅ ${fileName} descargado`);
+                    } catch (err) {
+                        showToast(`❌ Error al descargar: ${err.message}`, 'error');
+                    }
+                });
+            }
+        }
+    }
+
+    // ---- Renderizado fullscreen ----
+    function renderFullscreen(containerEl) {
+        container = containerEl;
+        container.style.cssText = 'width:100vw; height:100vh; overflow:hidden;';
+        window._marketGoBack = () => {
+            currentView = 'catalog';
+            render();
+        };
+        render();
+    }
+
+    // ---- Carga de la nave ----
+    async function load() {
+        console.log(`[${APP_NAME}] Cargando v${VERSION}...`);
+        return true;
+    }
+
+    // ---- Registrar la nave ----
+    if (typeof window !== 'undefined' && window.__DOCKMASTER) {
+        const D = window.__DOCKMASTER;
+        D.registerApp(APP_NAME, {
+            fullscreen: true,
+            description: 'Tienda de aplicaciones para VaciOS. Catálogo de naves oficiales con instalación desde GitHub, desinstalación, descarga y calificación.',
+            version: VERSION,
+            load: load,
+            renderFullscreen: renderFullscreen,
+            onActivate: () => console.log(`[${APP_NAME}] Nave activada.`),
+            onDeactivate: () => console.log(`[${APP_NAME}] Nave desactivada.`)
+        });
+        console.log(`✅ [${APP_NAME}] Registrada en __DOCKMASTER (v${VERSION}).`);
+    } else {
+        console.warn('[market] __DOCKMASTER no disponible. Esperando...');
+        setTimeout(() => {
+            if (window.__DOCKMASTER) {
+                const D = window.__DOCKMASTER;
+                D.registerApp(APP_NAME, {
+                    fullscreen: true,
+                    description: 'Tienda de aplicaciones para VaciOS.',
+                    version: VERSION,
+                    load: load,
+                    renderFullscreen: renderFullscreen,
+                    onActivate: () => console.log(`[${APP_NAME}] Nave activada.`),
+                    onDeactivate: () => console.log(`[${APP_NAME}] Nave desactivada.`)
+                });
+                console.log(`✅ [${APP_NAME}] Registrada en __DOCKMASTER (v${VERSION}).`);
+            } else {
+                console.error('[market] __DOCKMASTER no disponible incluso después de esperar.');
+            }
+        }, 100);
+    }
+})();
